@@ -17,7 +17,6 @@ To run the application run the following commands:
 ```
 export FLASK_APP=flaskr
 export FLASK_DEBUG=true
-flask db upgrade
 flask run
 ```
 
