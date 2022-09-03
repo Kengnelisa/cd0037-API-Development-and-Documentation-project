@@ -42,20 +42,18 @@ def create_app(test_config=None):
         keyword = body.get("searchTerm", None)
         if keyword is not None:
             selection = Question.query.filter(Question.question.ilike(f"%{keyword}%")).all()
-            if len(selection) == 0:
-                abort(404)
             questions = paginate_questions(request, selection)
             return jsonify({
                 "success": True,
                 "questions": questions,
-                "totalQuestions": len(selection)
+                "total_questions": len(selection)
             })
         try:
             question = body["question"]
             answer = body["answer"]
             category = body["category"]
             difficulty = body["difficulty"]
-            new_question = Question(question=question, answer=answer, category_id=category,
+            new_question = Question(question=question, answer=answer, category=category,
                                     difficulty=difficulty)
             new_question.insert()
             return jsonify({"success": True})
@@ -75,16 +73,16 @@ def create_app(test_config=None):
                 "success": True,
                 "categories": {category.id: category.type for category in Category.query.all()},
                 "questions": questions,
-                "totalQuestions": len(selection)
+                "total_questions": len(selection)
             }
         )
 
     @app.route("/questions/<int:question_id>", methods=["DELETE"])
     def delete_question(question_id):
+        question = Question.query.filter(Question.id == question_id).one_or_none()
+        if question is None:
+            abort(404)
         try:
-            question = Question.query.filter(Question.id == question_id).one_or_none()
-            if question is None:
-                abort(404)
             question.delete()
             return jsonify(
                 {
@@ -105,27 +103,27 @@ def create_app(test_config=None):
         })
 
     @app.route("/categories/<int:category_id>/questions")
-    def retrieve_category_questions(category_id):
+    def get_category_questions(category_id):
         category = Category.query.filter(Category.id == category_id).one_or_none()
         if category is None:
             abort(404)
-        selection = Question.query.filter(Category.id == category_id).all()
+        selection = Question.query.filter(Question.category == category_id).all()
         questions = paginate_questions(request, selection)
         return jsonify({
             "success": True,
             "questions": questions,
-            "totalQuestions": len(selection),
+            "total_questions": len(selection),
             "currentCategory": category.type
         })
 
     @app.route("/quizzes", methods=["POST"])
-    def get_quiz():
+    def quiz():
         try:
             json_body = request.get_json()
             previous_questions = json_body["previous_questions"]
             category_id = int(json_body["quiz_category"]["id"])
             if category_id > 0:
-                question = Question.query.filter(Question.category_id == category_id) \
+                question = Question.query.filter(Question.category == category_id) \
                     .filter(Question.id.not_in(previous_questions)).first()
             else:
                 question = Question.query.filter(Question.id.not_in(previous_questions)).first()
@@ -139,7 +137,8 @@ def create_app(test_config=None):
             })
         except KeyError:
             abort(400)
-        except:
+        except Exception as e:
+            print(e)
             abort(422)
 
     @app.errorhandler(400)
